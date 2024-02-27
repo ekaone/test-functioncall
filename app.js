@@ -2,7 +2,11 @@ import OpenAI from "openai";
 import dotenv from "dotenv";
 
 // functions
-import { getCurrentWeather, getUserStatus } from "./functions.js";
+import {
+  getCurrentWeather,
+  getUserStatus,
+  getCurrentTimeByCountry,
+} from "./functions.js";
 
 dotenv.config();
 const { log } = console;
@@ -19,7 +23,8 @@ const messages = [
   },
   {
     role: "user",
-    content: "is there users active and their age under 25",
+    content:
+      "what's time and weather in Tokyo, also please show me 2 name list active status?",
   },
 ];
 
@@ -67,6 +72,23 @@ async function runConversation() {
         },
       },
     },
+    {
+      type: "function",
+      function: {
+        name: "get_countries_time",
+        description: "Get current time in a given country",
+        parameters: {
+          type: "object",
+          properties: {
+            country: {
+              type: "string",
+              description: "The country, e.g. France, Japan, etc.",
+            },
+          },
+          required: ["country"],
+        },
+      },
+    },
   ];
 
   const response = await openai.chat.completions.create({
@@ -88,6 +110,7 @@ async function runConversation() {
     const availableFunctions = {
       get_current_weather: getCurrentWeather,
       get_user_status: getUserStatus,
+      get_countries_time: getCurrentTimeByCountry,
     }; // only one function in this example, but you can have multiple
     messages.push(responseMessage); // extend conversation with assistant's reply
     for (const toolCall of toolCalls) {
@@ -95,7 +118,10 @@ async function runConversation() {
       const functionToCall = availableFunctions[functionName];
       const functionArgs = JSON.parse(toolCall.function.arguments);
       const functionResponse = functionToCall(
-        functionArgs.status || functionArgs.location || functionArgs.unit
+        functionArgs.status ||
+          functionArgs.location ||
+          functionArgs.unit ||
+          functionArgs.country
       );
 
       messages.push({
